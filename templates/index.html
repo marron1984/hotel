@@ -43,6 +43,8 @@
            border-radius:8px; cursor:pointer; font-weight:600; }
   button:hover { background:#1a5fd0; }
   .note { font-size:12px; color:#8a929c; margin-top:8px; }
+  .langsel { margin-bottom:10px; font-size:14px; }
+  .langsel label { margin:0 10px; cursor:pointer; }
 </style>
 </head>
 <body>
@@ -140,8 +142,14 @@
 </div>
 
 <div class="bar">
+  <div class="langsel">
+    <span>出力言語：</span>
+    <label><input type="radio" name="lang" value="ja" checked> 日本語</label>
+    <label><input type="radio" name="lang" value="en"> English</label>
+  </div>
   <button type="submit">📊 Excelを生成してダウンロード</button>
-  <div class="note">生成された hotel_proforma.xlsx を Excel で開くと、全シートが自動再計算されます。</div>
+  <div class="note">生成された Excel を開くと、全シートが自動再計算されます。<br>
+    ※ シートのタブ名（Proforma / Rooms など）は数式参照を保つため英語のままです。</div>
 </div>
 </form>
 </body>

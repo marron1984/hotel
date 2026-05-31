@@ -20,6 +20,7 @@ from flask import Flask, render_template, request, send_file
 import openpyxl
 
 import fields as F
+import translations as T
 
 APP_DIR = os.path.dirname(os.path.abspath(__file__))
 TEMPLATE_PATH = os.path.join(APP_DIR, "template.xlsx")
@@ -187,6 +188,10 @@ def generate():
             if head is not None:
                 ws[r["head_cell"]] = head
 
+    # 出力言語の適用（日本語 / 英語）
+    lang = form.get("lang", "ja")
+    T.translate_workbook(wb, lang)
+
     # Excel で開いたときに全シートを再計算させる
     try:
         wb.calculation.fullCalcOnLoad = True
@@ -199,7 +204,7 @@ def generate():
     return send_file(
         buf,
         as_attachment=True,
-        download_name="hotel_proforma.xlsx",
+        download_name=("hotel_proforma_ja.xlsx" if lang == "ja" else "hotel_proforma_en.xlsx"),
         mimetype="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
     )
 
