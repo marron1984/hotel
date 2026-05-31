@@ -1,0 +1,148 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ホテル収支計画 作成ツール</title>
+<style>
+  :root { --accent:#1f6feb; --bg:#f5f7fa; --line:#e2e6ec; }
+  * { box-sizing: border-box; }
+  body { font-family: "Hiragino Kaku Gothic ProN","Meiryo","Yu Gothic",sans-serif;
+         margin:0; background:var(--bg); color:#1b1f24; line-height:1.6; }
+  header { background:#0d1b2a; color:#fff; padding:20px 24px; position:sticky; top:0; z-index:10;
+           display:flex; align-items:center; justify-content:space-between; }
+  header h1 { font-size:18px; margin:0; }
+  header .sub { font-size:12px; opacity:.8; margin-top:2px; }
+  .wrap { max-width:1040px; margin:0 auto; padding:24px; }
+  .intro { background:#fff; border:1px solid var(--line); border-radius:10px; padding:16px 20px;
+           margin-bottom:20px; font-size:14px; }
+  details { background:#fff; border:1px solid var(--line); border-radius:10px; margin-bottom:14px; overflow:hidden; }
+  summary { cursor:pointer; padding:14px 18px; font-weight:600; font-size:15px; background:#fafbfc;
+            list-style:none; display:flex; align-items:center; justify-content:space-between; }
+  summary::-webkit-details-marker { display:none; }
+  summary::after { content:"＋"; color:var(--accent); font-weight:700; }
+  details[open] summary::after { content:"−"; }
+  .grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(300px,1fr)); gap:14px 22px;
+          padding:18px; }
+  .field label { display:block; font-size:13px; margin-bottom:4px; color:#3a414b; }
+  .field .help { font-size:11px; color:#8a929c; margin-top:2px; }
+  .inrow { display:flex; align-items:center; gap:6px; }
+  input[type=text], input[type=number] {
+      width:100%; padding:7px 9px; border:1px solid #cdd3db; border-radius:6px; font-size:14px; }
+  input:focus { outline:none; border-color:var(--accent); box-shadow:0 0 0 2px rgba(31,111,235,.15); }
+  .suffix { font-size:13px; color:#6b7280; white-space:nowrap; }
+  table { width:100%; border-collapse:collapse; }
+  th, td { border:1px solid var(--line); padding:6px 8px; font-size:13px; text-align:center; }
+  th { background:#fafbfc; font-weight:600; }
+  td input { text-align:right; }
+  td input[type=text] { text-align:left; }
+  .tablewrap { padding:18px; overflow-x:auto; }
+  .bar { position:sticky; bottom:0; background:#fff; border-top:1px solid var(--line);
+         padding:14px 24px; text-align:center; }
+  button { background:var(--accent); color:#fff; border:none; padding:12px 34px; font-size:15px;
+           border-radius:8px; cursor:pointer; font-weight:600; }
+  button:hover { background:#1a5fd0; }
+  .note { font-size:12px; color:#8a929c; margin-top:8px; }
+</style>
+</head>
+<body>
+<header>
+  <div>
+    <h1>ホテル収支計画 (Proforma) 作成ツール</h1>
+    <div class="sub">必要情報を入力 → Excel を生成・ダウンロード</div>
+  </div>
+</header>
+
+<form method="post" action="/generate">
+<div class="wrap">
+
+  <div class="intro">
+    各項目に前提値を入力してください。空欄やそのままの項目はサンプルの既定値が使われます。<br>
+    「Excelを生成」を押すと、<b>元のサンプルの数式・レイアウトをすべて保持</b>したまま入力値だけを反映した
+    完成版 Excel がダウンロードされます。Excel で開くと自動で再計算されます。
+  </div>
+
+  <!-- 客室タイプ -->
+  <details open>
+    <summary>客室タイプ・室数・単価</summary>
+    <div class="tablewrap">
+      <table>
+        <thead>
+          <tr>
+            <th>客室タイプ名</th><th>室数</th><th>広さ (㎡)</th>
+            <th>稼働率 (%)</th><th>客室単価 (円/泊)</th>
+          </tr>
+        </thead>
+        <tbody>
+        {% for rt in room_types %}
+          <tr>
+            <td><input type="text"   name="rt_name_{{rt.idx}}"  value="{{rt.name}}"></td>
+            <td><input type="number" name="rt_rooms_{{rt.idx}}" value="{{rt.rooms}}" step="1" style="width:80px"></td>
+            <td><input type="number" name="rt_size_{{rt.idx}}"  value="{{rt.size}}" step="0.1" style="width:90px"></td>
+            <td><input type="number" name="rt_occ_{{rt.idx}}"   value="{{rt.occ}}" step="0.1" style="width:90px"></td>
+            <td><input type="number" name="rt_rate_{{rt.idx}}"  value="{{rt.rate}}" step="100" style="width:110px"></td>
+          </tr>
+        {% endfor %}
+        </tbody>
+      </table>
+      <div class="note">空のタイプ名の行は無視されます。稼働率は月別の季節係数（STR2019ベース）に乗じて使われます。</div>
+    </div>
+  </details>
+
+  <!-- 平坦セクション -->
+  {% for sec in sections %}
+  <details {% if loop.first %}open{% endif %}>
+    <summary>{{ sec.title }}</summary>
+    <div class="grid">
+      {% for f in sec.fields %}
+      <div class="field">
+        <label>{{ f.label }}</label>
+        <div class="inrow">
+          {% if f.kind == 'text' %}
+            <input type="text" name="{{ f.name }}" value="{{ f.value }}">
+          {% elif f.kind == 'pct' %}
+            <input type="number" step="0.001" name="{{ f.name }}" value="{{ f.value }}">
+            <span class="suffix">％</span>
+          {% elif f.kind == 'int' %}
+            <input type="number" step="1" name="{{ f.name }}" value="{{ f.value }}">
+          {% else %}
+            <input type="number" step="any" name="{{ f.name }}" value="{{ f.value }}">
+          {% endif %}
+        </div>
+        {% if f.help %}<div class="help">{{ f.help }}</div>{% endif %}
+      </div>
+      {% endfor %}
+    </div>
+  </details>
+  {% endfor %}
+
+  <!-- 人員計画 -->
+  {% for grp in staffing %}
+  <details>
+    <summary>{{ grp.title }}</summary>
+    <div class="tablewrap">
+      <table>
+        <thead><tr><th style="text-align:left">役職</th><th>月給 (円)</th><th>人数</th></tr></thead>
+        <tbody>
+        {% for r in grp.roles %}
+          <tr>
+            <td style="text-align:left">{{ r.label }}</td>
+            <td><input type="number" name="{{ r.salary_name }}" value="{{ r.salary }}" step="1000" style="width:120px"></td>
+            <td><input type="number" name="{{ r.head_name }}" value="{{ r.head }}" step="1" style="width:80px"></td>
+          </tr>
+        {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </details>
+  {% endfor %}
+
+</div>
+
+<div class="bar">
+  <button type="submit">📊 Excelを生成してダウンロード</button>
+  <div class="note">生成された hotel_proforma.xlsx を Excel で開くと、全シートが自動再計算されます。</div>
+</div>
+</form>
+</body>
+</html>

@@ -1,0 +1,7 @@
+__pycache__/
+*.pyc
+.venv/
+venv/
+*.egg-info/
+hotel_proforma.xlsx
+.DS_Store
