@@ -45,6 +45,9 @@
   .note { font-size:12px; color:#8a929c; margin-top:8px; }
   .langsel { margin-bottom:10px; font-size:14px; }
   .langsel label { margin:0 10px; cursor:pointer; }
+  .outsel { background:#fff; border:2px solid var(--accent); border-radius:10px; padding:14px 18px; margin-bottom:18px; }
+  .outsel-title { font-weight:700; font-size:14px; margin-bottom:8px; color:var(--accent); }
+  .outopt { display:inline-flex; align-items:center; gap:6px; margin-right:24px; font-size:14px; cursor:pointer; }
 </style>
 </head>
 <body>
@@ -60,9 +63,24 @@
 
   <div class="intro">
     各項目に前提値を入力してください。空欄やそのままの項目はサンプルの既定値が使われます。<br>
-    「Excelを生成」を押すと、<b>元のサンプルの数式・レイアウトをすべて保持</b>したまま入力値だけを反映した
+    「Excelを生成」を押すと、<b>数式・レイアウトをすべて保持</b>したまま入力値だけを反映した
     完成版 Excel がダウンロードされます。Excel で開くと自動で再計算されます。
   </div>
+
+  <!-- 出力フォーマット選択 -->
+  <div class="outsel">
+    <div class="outsel-title">出力フォーマット</div>
+    {% for o in outputs %}
+    <label class="outopt">
+      <input type="radio" name="output" value="{{ o.id }}" {% if loop.first %}checked{% endif %}
+             onchange="switchOutput(this.value)">
+      <span>{{ o.label }}</span>
+    </label>
+    {% endfor %}
+  </div>
+
+  <!-- ============ 詳細モデル用の入力 ============ -->
+  <div id="grp-detailed">
 
   <!-- 客室タイプ -->
   <details open>
@@ -139,18 +157,63 @@
   </details>
   {% endfor %}
 
+  </div><!-- /grp-detailed -->
+
+  <!-- ============ サマリー形式（Nara）用の入力 ============ -->
+  <div id="grp-nara" style="display:none">
+    <div class="intro">
+      <b>サマリー形式</b>は1枚もの（5年収支サマリー）のレイアウトです。<br>
+      入力したドライバー値から各行が<b>数式で自動再計算</b>されます。
+      ※「Annual Moxy Fees」のブロックはプリセット値のままです（必要に応じてExcel上で編集してください）。
+    </div>
+    {% for sec in nara_sections %}
+    <details {% if loop.first %}open{% endif %}>
+      <summary>{{ sec.title }}</summary>
+      <div class="grid">
+        {% for f in sec.fields %}
+        <div class="field">
+          <label>{{ f.label }}</label>
+          <div class="inrow">
+            {% if f.kind == 'text' %}
+              <input type="text" name="{{ f.name }}" value="{{ f.value }}">
+            {% elif f.kind == 'pct' %}
+              <input type="number" step="0.001" name="{{ f.name }}" value="{{ f.value }}">
+              <span class="suffix">％</span>
+            {% elif f.kind == 'int' %}
+              <input type="number" step="1" name="{{ f.name }}" value="{{ f.value }}">
+            {% else %}
+              <input type="number" step="any" name="{{ f.name }}" value="{{ f.value }}">
+            {% endif %}
+          </div>
+          {% if f.help %}<div class="help">{{ f.help }}</div>{% endif %}
+        </div>
+        {% endfor %}
+      </div>
+    </details>
+    {% endfor %}
+  </div><!-- /grp-nara -->
+
 </div>
 
 <div class="bar">
-  <div class="langsel">
+  <div class="langsel" id="langsel">
     <span>出力言語：</span>
     <label><input type="radio" name="lang" value="ja" checked> 日本語</label>
     <label><input type="radio" name="lang" value="en"> English</label>
   </div>
   <button type="submit">📊 Excelを生成してダウンロード</button>
   <div class="note">生成された Excel を開くと、全シートが自動再計算されます。<br>
-    ※ シートのタブ名（Proforma / Rooms など）は数式参照を保つため英語のままです。</div>
+    ※ シートのタブ名は数式参照を保つため変更しません。</div>
 </div>
 </form>
+
+<script>
+function switchOutput(v){
+  document.getElementById('grp-detailed').style.display = (v==='detailed')?'block':'none';
+  document.getElementById('grp-nara').style.display     = (v==='nara')?'block':'none';
+  // 出力言語の切替は詳細モデルのみ対象
+  document.getElementById('langsel').style.visibility   = (v==='detailed')?'visible':'hidden';
+}
+</script>
 </body>
 </html>

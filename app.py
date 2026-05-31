@@ -24,6 +24,7 @@ import translations as T
 
 APP_DIR = os.path.dirname(os.path.abspath(__file__))
 TEMPLATE_PATH = os.path.join(APP_DIR, "template.xlsx")
+NARA_TEMPLATE_PATH = os.path.join(APP_DIR, "template_nara.xlsx")
 
 app = Flask(__name__)
 
@@ -106,16 +107,55 @@ def build_context():
     return sections, room_types, staffing
 
 
+def build_flat_sections(template_path, section_defs):
+    """シート名/セルだけの平坦フィールド群について、テンプレートの既定値を読む。"""
+    wb = openpyxl.load_workbook(template_path, data_only=False)
+    sections = []
+    for sec in section_defs:
+        fl = []
+        for fd in sec["fields"]:
+            ws = wb[fd["sheet"]]
+            fl.append({
+                **fd,
+                "name": f"f__{fd['sheet']}__{fd['cell']}",
+                "value": _disp(fd["kind"], _raw(ws, fd["cell"])),
+            })
+        sections.append({"id": sec["id"], "title": sec["title"], "fields": fl})
+    return sections
+
+
+def fill_flat_sections(wb, section_defs, form):
+    """平坦フィールド群をフォーム値で wb に書き込む。"""
+    for sec in section_defs:
+        for fd in sec["fields"]:
+            key = f"f__{fd['sheet']}__{fd['cell']}"
+            if key not in form:
+                continue
+            ws = wb[fd["sheet"]]
+            if fd["kind"] == "text":
+                ws[fd["cell"]] = form.get(key, "").strip()
+            else:
+                val = _to_num(form.get(key), fd["kind"])
+                if val is None:
+                    continue
+                ws[fd["cell"]] = val
+                for extra in fd.get("spread", []):
+                    ws[extra] = val
+
+
 # --------------------------------------------------------------------------- #
 # ルーティング
 # --------------------------------------------------------------------------- #
 @app.route("/")
 def index():
     sections, room_types, staffing = build_context()
+    nara_sections = build_flat_sections(NARA_TEMPLATE_PATH, F.NARA_SECTIONS)
     return render_template("index.html",
+                           outputs=F.OUTPUTS,
                            sections=sections,
                            room_types=room_types,
-                           staffing=staffing)
+                           staffing=staffing,
+                           nara_sections=nara_sections)
 
 
 def _to_num(s, kind):
@@ -133,28 +173,39 @@ def _to_num(s, kind):
     return v
 
 
+def _finalize(wb, download_name):
+    """全再計算フラグを立て、xlsx をダウンロード応答として返す。"""
+    try:
+        wb.calculation.fullCalcOnLoad = True
+    except Exception:
+        pass
+    buf = io.BytesIO()
+    wb.save(buf)
+    buf.seek(0)
+    return send_file(
+        buf,
+        as_attachment=True,
+        download_name=download_name,
+        mimetype="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    )
+
+
 @app.route("/generate", methods=["POST"])
 def generate():
-    wb = openpyxl.load_workbook(TEMPLATE_PATH, data_only=False)
     form = request.form
+    output = form.get("output", "detailed")
+
+    # --- サマリー形式（1枚もの・Naraレイアウト） ---
+    if output == "nara":
+        wb = openpyxl.load_workbook(NARA_TEMPLATE_PATH, data_only=False)
+        fill_flat_sections(wb, F.NARA_SECTIONS, form)
+        return _finalize(wb, "hotel_proforma_summary.xlsx")
+
+    # --- 詳細モデル（全シート・数式付き） ---
+    wb = openpyxl.load_workbook(TEMPLATE_PATH, data_only=False)
 
     # 平坦フィールド
-    for sec in F.SECTIONS:
-        for fd in sec["fields"]:
-            key = f"f__{fd['sheet']}__{fd['cell']}"
-            if key not in form:
-                continue
-            ws = wb[fd["sheet"]]
-            if fd["kind"] == "text":
-                val = form.get(key, "").strip()
-                ws[fd["cell"]] = val
-            else:
-                val = _to_num(form.get(key), fd["kind"])
-                if val is None:
-                    continue
-                ws[fd["cell"]] = val
-                for extra in fd.get("spread", []):
-                    ws[extra] = val
+    fill_flat_sections(wb, F.SECTIONS, form)
 
     # 客室タイプ
     rt_ws = wb["Room Types"]
@@ -192,21 +243,7 @@ def generate():
     lang = form.get("lang", "ja")
     T.translate_workbook(wb, lang)
 
-    # Excel で開いたときに全シートを再計算させる
-    try:
-        wb.calculation.fullCalcOnLoad = True
-    except Exception:
-        pass
-
-    buf = io.BytesIO()
-    wb.save(buf)
-    buf.seek(0)
-    return send_file(
-        buf,
-        as_attachment=True,
-        download_name=("hotel_proforma_ja.xlsx" if lang == "ja" else "hotel_proforma_en.xlsx"),
-        mimetype="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-    )
+    return _finalize(wb, "hotel_proforma_ja.xlsx" if lang == "ja" else "hotel_proforma_en.xlsx")
 
 
 if __name__ == "__main__":
