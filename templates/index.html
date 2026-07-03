@@ -98,9 +98,9 @@
           <tr>
             <td><input type="text"   name="rt_name_{{rt.idx}}"  value="{{rt.name}}"></td>
             <td><input type="number" name="rt_rooms_{{rt.idx}}" value="{{rt.rooms}}" step="1" style="width:80px"></td>
-            <td><input type="number" name="rt_size_{{rt.idx}}"  value="{{rt.size}}" step="0.1" style="width:90px"></td>
-            <td><input type="number" name="rt_occ_{{rt.idx}}"   value="{{rt.occ}}" step="0.1" style="width:90px"></td>
-            <td><input type="number" name="rt_rate_{{rt.idx}}"  value="{{rt.rate}}" step="100" style="width:110px"></td>
+            <td><input type="number" name="rt_size_{{rt.idx}}"  value="{{rt.size}}" step="any" style="width:90px"></td>
+            <td><input type="number" name="rt_occ_{{rt.idx}}"   value="{{rt.occ}}" step="any" style="width:90px"></td>
+            <td><input type="number" name="rt_rate_{{rt.idx}}"  value="{{rt.rate}}" step="any" style="width:110px"></td>
           </tr>
         {% endfor %}
         </tbody>
@@ -121,7 +121,7 @@
           {% if f.kind == 'text' %}
             <input type="text" name="{{ f.name }}" value="{{ f.value }}">
           {% elif f.kind == 'pct' %}
-            <input type="number" step="0.001" name="{{ f.name }}" value="{{ f.value }}">
+            <input type="number" step="any" name="{{ f.name }}" value="{{ f.value }}">
             <span class="suffix">％</span>
           {% elif f.kind == 'int' %}
             <input type="number" step="1" name="{{ f.name }}" value="{{ f.value }}">
@@ -147,7 +147,7 @@
         {% for r in grp.roles %}
           <tr>
             <td style="text-align:left">{{ r.label }}</td>
-            <td><input type="number" name="{{ r.salary_name }}" value="{{ r.salary }}" step="1000" style="width:120px"></td>
+            <td><input type="number" name="{{ r.salary_name }}" value="{{ r.salary }}" step="any" style="width:120px"></td>
             <td><input type="number" name="{{ r.head_name }}" value="{{ r.head }}" step="1" style="width:80px"></td>
           </tr>
         {% endfor %}
@@ -177,7 +177,7 @@
             {% if f.kind == 'text' %}
               <input type="text" name="{{ f.name }}" value="{{ f.value }}">
             {% elif f.kind == 'pct' %}
-              <input type="number" step="0.001" name="{{ f.name }}" value="{{ f.value }}">
+              <input type="number" step="any" name="{{ f.name }}" value="{{ f.value }}">
               <span class="suffix">％</span>
             {% elif f.kind == 'int' %}
               <input type="number" step="1" name="{{ f.name }}" value="{{ f.value }}">

@@ -44,7 +44,8 @@ def _disp(kind, v):
     if v is None:
         return "" if kind == "text" else 0
     if kind == "pct":
-        return round(float(v) * 100, 6)
+        # 丸めは表示ノイズ除去のみ（10桁 = 分数で1e-12。往復しても実質無損失）
+        return round(float(v) * 100, 10)
     if kind == "int":
         try:
             return int(round(float(v)))
